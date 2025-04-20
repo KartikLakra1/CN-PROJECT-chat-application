@@ -72,6 +72,40 @@ void handleClient(SOCKET clientSocket)
             continue; // Skip broadcasting for /list command
         }
 
+        // Handle /msg command for private messaging
+        if (message.substr(0, 5) == "/msg ")
+        {
+            // Extract name and message
+            size_t spacePos = message.find(" ", 5); // Find the space after "/msg"
+            if (spacePos != std::string::npos)
+            {
+                std::string targetName = message.substr(5, spacePos - 5);
+                std::string privateMessage = message.substr(spacePos + 1);
+
+                // Find the target client
+                bool found = false;
+                {
+                    std::lock_guard<std::mutex> lock(clients_mutex);
+                    for (const auto &client : clients)
+                    {
+                        if (client.name == targetName)
+                        {
+                            send(client.socket, privateMessage.c_str(), privateMessage.size(), 0);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    std::string errorMessage = "User " + targetName + " not found.\n";
+                    send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+                }
+            }
+            continue; // Skip broadcasting for /msg command
+        }
+
         std::cout << clientName << " says: " << message << "\n";
 
         // Log message to file
