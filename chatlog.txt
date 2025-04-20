@@ -16,3 +16,4 @@ serve is connected successfully
 what do you want
 /kick kunal
 /kick raj
+/kick kartik
