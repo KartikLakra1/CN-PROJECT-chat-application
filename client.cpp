@@ -1,12 +1,38 @@
 // client.cpp (Windows)
 #include <iostream>
 #include <winsock2.h>
+#include <thread>
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define PORT 8080
 #define SERVER_IP "127.0.0.1"
 using namespace std;
+
+void receiveMessages(SOCKET client_socket)
+{
+    char buffer[1024];
+    while (true)
+    {
+        memset(buffer, 0, sizeof(buffer));
+        int bytesReceived = recv(client_socket, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0)
+        {
+            std::cout << "\n"
+                      << std::string(buffer, bytesReceived) << "\nYou: ";
+        }
+        else if (bytesReceived == 0)
+        {
+            std::cout << "\nServer disconnected.\n";
+            break;
+        }
+        else
+        {
+            std::cerr << "\nReceive failed.\n";
+            break;
+        }
+    }
+}
 
 int main()
 {
@@ -51,6 +77,10 @@ int main()
     std::cout << "Enter your name: ";
     std::getline(std::cin, name);
     send(client_socket, name.c_str(), name.length(), 0);
+
+    // Start receiver thread
+    std::thread receiverThread(receiveMessages, client_socket);
+    receiverThread.detach();
 
     // Step 5: Send message
     std::string message;
