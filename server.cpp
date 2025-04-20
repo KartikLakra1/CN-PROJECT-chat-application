@@ -55,8 +55,24 @@ void handleClient(SOCKET clientSocket)
             break;
         }
 
-        std::string message = clientName + " says: " + std::string(buffer, bytesReceived);
-        std::cout << message << "\n";
+        std::string message = std::string(buffer, bytesReceived);
+
+        // Handle /list command
+        if (message == "/list")
+        {
+            std::string clientList = "Connected clients:\n";
+            {
+                std::lock_guard<std::mutex> lock(clients_mutex);
+                for (const auto &client : clients)
+                {
+                    clientList += client.name + "\n";
+                }
+            }
+            send(clientSocket, clientList.c_str(), clientList.size(), 0);
+            continue; // Skip broadcasting for /list command
+        }
+
+        std::cout << clientName << " says: " << message << "\n";
 
         // Log message to file
         std::ofstream logFile("chatlog.txt", std::ios::app);
