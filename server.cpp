@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -56,6 +57,14 @@ void handleClient(SOCKET clientSocket)
 
         std::string message = clientName + " says: " + std::string(buffer, bytesReceived);
         std::cout << message << "\n";
+
+        // Log message to file
+        std::ofstream logFile("chatlog.txt", std::ios::app);
+        if (logFile.is_open())
+        {
+            logFile << message << std::endl;
+        }
+        logFile.close();
 
         // Broadcast to all other clients
         std::lock_guard<std::mutex> lock(clients_mutex);
