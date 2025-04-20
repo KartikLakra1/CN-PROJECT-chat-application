@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -16,7 +17,7 @@ struct ClientInfo
 };
 
 std::vector<ClientInfo> clients;
-std::mutex Clients_mutex;
+std::mutex clients_mutex;
 
 void handleClient(SOCKET clientSocket)
 {
@@ -33,9 +34,16 @@ void handleClient(SOCKET clientSocket)
     }
 
     std::string clientName(buffer, nameBytes);
+
+    // Add client to global list
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex);
+        clients.push_back({clientSocket, clientName});
+    }
+
     std::cout << clientName << " connected.\n";
 
-    // Step 2: Receive messages from the client
+    // Step 2: Handle incoming messages and broadcast
     while (true)
     {
         memset(buffer, 0, sizeof(buffer));
@@ -46,7 +54,27 @@ void handleClient(SOCKET clientSocket)
             break;
         }
 
-        std::cout << clientName << " says: " << buffer << "\n";
+        std::string message = clientName + " says: " + std::string(buffer, bytesReceived);
+        std::cout << message << "\n";
+
+        // Broadcast to all other clients
+        std::lock_guard<std::mutex> lock(clients_mutex);
+        for (const auto &client : clients)
+        {
+            if (client.socket != clientSocket)
+            {
+                send(client.socket, message.c_str(), message.size(), 0);
+            }
+        }
+    }
+
+    // Remove client on disconnect
+    {
+        std::lock_guard<std::mutex> lock(clients_mutex);
+        clients.erase(std::remove_if(clients.begin(), clients.end(),
+                                     [clientSocket](const ClientInfo &ci)
+                                     { return ci.socket == clientSocket; }),
+                      clients.end());
     }
 
     closesocket(clientSocket);
