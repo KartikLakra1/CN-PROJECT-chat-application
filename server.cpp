@@ -106,17 +106,43 @@ void handleClient(SOCKET clientSocket)
             continue; // Skip broadcasting for /msg command
         }
 
-        std::cout << clientName << " says: " << message << "\n";
-
-        // Log message to file
-        std::ofstream logFile("chatlog.txt", std::ios::app);
-        if (logFile.is_open())
+        // Handle /kick command from server (admin)
+        if (message.substr(0, 5) == "/kick ")
         {
-            logFile << message << std::endl;
-        }
-        logFile.close();
+            std::string targetName = message.substr(6);
 
+            bool kicked = false;
+            {
+                std::lock_guard<std::mutex> lock(clients_mutex);
+                for (auto it = clients.begin(); it != clients.end(); ++it)
+                {
+                    if (it->name == targetName)
+                    {
+                        // Send kick message to the client
+                        std::string kickMessage = "You have been kicked from the server.\n";
+                        send(it->socket, kickMessage.c_str(), kickMessage.size(), 0);
+
+                        // Close the client's socket
+                        closesocket(it->socket);
+
+                        // Remove client from list
+                        clients.erase(it);
+                        std::cout << targetName << " has been kicked from the server.\n";
+                        kicked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!kicked)
+            {
+                std::string errorMessage = "User " + targetName + " not found.\n";
+                send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+            }
+            continue;
+        }
         // Broadcast to all other clients
+        std::cout << clientName << " says: " << message << "\n";
         std::lock_guard<std::mutex> lock(clients_mutex);
         for (const auto &client : clients)
         {
@@ -125,6 +151,14 @@ void handleClient(SOCKET clientSocket)
                 send(client.socket, message.c_str(), message.size(), 0);
             }
         }
+
+        // Log message to file
+        std::ofstream logFile("chatlog.txt", std::ios::app);
+        if (logFile.is_open())
+        {
+            logFile << message << std::endl;
+        }
+        logFile.close();
     }
 
     // Remove client on disconnect

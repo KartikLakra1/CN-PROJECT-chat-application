@@ -12,3 +12,7 @@ you fuck off
 what do you want
 nothing much
 what do you mean nothing much
+serve is connected successfully
+what do you want
+/kick kunal
+/kick raj
