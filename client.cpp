@@ -89,7 +89,7 @@ int main()
         std::cout << "You: ";
         std::getline(std::cin, message);
 
-        if (message == "exit")
+        if (message == "exit" || message == "EXIT")
         {
             std::cout << "Exiting...\n";
             break;

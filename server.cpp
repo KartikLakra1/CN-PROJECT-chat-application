@@ -54,7 +54,6 @@ void handleClient(SOCKET clientSocket)
             std::cout << clientName << " disconnected.\n";
             break;
         }
-
         std::string message = std::string(buffer, bytesReceived);
 
         // Handle /list command
@@ -142,7 +141,8 @@ void handleClient(SOCKET clientSocket)
             continue;
         }
         // Broadcast to all other clients
-        std::cout << clientName << " says: " << message << "\n";
+        std::cout << clientName + " says: " + message << "\n";
+
         std::lock_guard<std::mutex> lock(clients_mutex);
         for (const auto &client : clients)
         {
