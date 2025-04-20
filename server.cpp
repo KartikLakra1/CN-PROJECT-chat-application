@@ -1,24 +1,52 @@
 #include <iostream>
 #include <winsock2.h>
 #include <thread>
+#include <mutex>
+#include <string>
+#include <vector>
 
 #pragma comment(lib, "ws2_32.lib")
 
 #define PORT 8080
 
+struct ClientInfo
+{
+    SOCKET socket;
+    std::string name;
+};
+
+std::vector<ClientInfo> clients;
+std::mutex Clients_mutex;
+
 void handleClient(SOCKET clientSocket)
 {
     char buffer[1024];
+
+    // Step 1: Receive client's name
+    memset(buffer, 0, sizeof(buffer));
+    int nameBytes = recv(clientSocket, buffer, sizeof(buffer), 0);
+    if (nameBytes <= 0)
+    {
+        std::cout << "Failed to receive client name.\n";
+        closesocket(clientSocket);
+        return;
+    }
+
+    std::string clientName(buffer, nameBytes);
+    std::cout << clientName << " connected.\n";
+
+    // Step 2: Receive messages from the client
     while (true)
     {
         memset(buffer, 0, sizeof(buffer));
         int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
         if (bytesReceived <= 0)
         {
-            std::cout << "Client disconnected.\n";
+            std::cout << clientName << " disconnected.\n";
             break;
         }
-        std::cout << "Client says: " << buffer << "\n";
+
+        std::cout << clientName << " says: " << buffer << "\n";
     }
 
     closesocket(clientSocket);

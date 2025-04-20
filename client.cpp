@@ -6,6 +6,7 @@
 
 #define PORT 8080
 #define SERVER_IP "127.0.0.1"
+using namespace std;
 
 int main()
 {
@@ -44,6 +45,12 @@ int main()
     }
 
     std::cout << "Connected to server!\n";
+
+    // Send name to server
+    std::string name;
+    std::cout << "Enter your name: ";
+    std::getline(std::cin, name);
+    send(client_socket, name.c_str(), name.length(), 0);
 
     // Step 5: Send message
     std::string message;
