@@ -49,10 +49,19 @@ int main()
 
     // Step 5: Send message
     string message;
-    cout << "Enter message to send: ";
-    getline(cin, message);
+    while (true)
+    {
+        std::cout << "You: ";
+        std::getline(cin, message);
 
-    send(client_socket, message.c_str(), message.length(), 0);
+        if (message == "exit")
+        {
+            std::cout << "Exiting...\n";
+            break;
+        }
+
+        send(client_socket, message.c_str(), message.length(), 0);
+    }
     cout << "Message sent to server!\n";
 
     // Step 6: Cleanup
