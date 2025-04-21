@@ -19,6 +19,7 @@ struct ClientInfo
 
 std::vector<ClientInfo> clients;
 std::mutex clients_mutex;
+std::mutex log_mutex;
 
 void handleClient(SOCKET clientSocket)
 {
@@ -35,8 +36,8 @@ void handleClient(SOCKET clientSocket)
     }
 
     std::string clientName(buffer, nameBytes);
+    bool isAdmin = (clientName == "admin");
 
-    // Add client to global list
     {
         std::lock_guard<std::mutex> lock(clients_mutex);
         clients.push_back({clientSocket, clientName});
@@ -44,7 +45,6 @@ void handleClient(SOCKET clientSocket)
 
     std::cout << clientName << " connected.\n";
 
-    // Step 2: Handle incoming messages and broadcast
     while (true)
     {
         memset(buffer, 0, sizeof(buffer));
@@ -54,9 +54,17 @@ void handleClient(SOCKET clientSocket)
             std::cout << clientName << " disconnected.\n";
             break;
         }
-        std::string message = std::string(buffer, bytesReceived);
 
-        // Handle /list command
+        std::string message(buffer, bytesReceived);
+
+        // Exit handling
+        if (message == "exit" || message == "EXIT")
+        {
+            std::cout << clientName << " has exited the chat.\n";
+            break;
+        }
+
+        // /list command
         if (message == "/list")
         {
             std::string clientList = "Connected clients:\n";
@@ -68,20 +76,19 @@ void handleClient(SOCKET clientSocket)
                 }
             }
             send(clientSocket, clientList.c_str(), clientList.size(), 0);
-            continue; // Skip broadcasting for /list command
+            continue;
         }
 
-        // Handle /msg command for private messaging
+        // /msg command
         if (message.substr(0, 5) == "/msg ")
         {
-            // Extract name and message
-            size_t spacePos = message.find(" ", 5); // Find the space after "/msg"
+            size_t spacePos = message.find(" ", 5);
             if (spacePos != std::string::npos)
             {
                 std::string targetName = message.substr(5, spacePos - 5);
                 std::string privateMessage = message.substr(spacePos + 1);
+                std::string formatted = "[PM from " + clientName + "]: " + privateMessage;
 
-                // Find the target client
                 bool found = false;
                 {
                     std::lock_guard<std::mutex> lock(clients_mutex);
@@ -89,7 +96,7 @@ void handleClient(SOCKET clientSocket)
                     {
                         if (client.name == targetName)
                         {
-                            send(client.socket, privateMessage.c_str(), privateMessage.size(), 0);
+                            send(client.socket, formatted.c_str(), formatted.size(), 0);
                             found = true;
                             break;
                         }
@@ -102,31 +109,33 @@ void handleClient(SOCKET clientSocket)
                     send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
                 }
             }
-            continue; // Skip broadcasting for /msg command
+            continue;
         }
 
-        // Handle /kick command from server (admin)
-        if (message.substr(0, 5) == "/kick ")
+        // /kick command (only admin allowed)
+        if (message.substr(0, 6) == "/kick ")
         {
-            std::string targetName = message.substr(6);
+            if (!isAdmin)
+            {
+                std::string noPerm = "You are not authorized to use /kick.\n";
+                send(clientSocket, noPerm.c_str(), noPerm.size(), 0);
+                continue;
+            }
 
+            std::string targetName = message.substr(6);
             bool kicked = false;
+
             {
                 std::lock_guard<std::mutex> lock(clients_mutex);
                 for (auto it = clients.begin(); it != clients.end(); ++it)
                 {
                     if (it->name == targetName)
                     {
-                        // Send kick message to the client
                         std::string kickMessage = "You have been kicked from the server.\n";
                         send(it->socket, kickMessage.c_str(), kickMessage.size(), 0);
-
-                        // Close the client's socket
                         closesocket(it->socket);
-
-                        // Remove client from list
                         clients.erase(it);
-                        std::cout << targetName << " has been kicked from the server.\n";
+                        std::cout << targetName << " has been kicked by admin.\n";
                         kicked = true;
                         break;
                     }
@@ -140,28 +149,34 @@ void handleClient(SOCKET clientSocket)
             }
             continue;
         }
-        // Broadcast to all other clients
-        std::cout << clientName + " says: " + message << "\n";
 
-        std::lock_guard<std::mutex> lock(clients_mutex);
-        for (const auto &client : clients)
+        // Format message with name
+        std::string fullMessage = clientName + ": " + message;
+        std::cout << fullMessage << "\n";
+
         {
-            if (client.socket != clientSocket)
+            std::lock_guard<std::mutex> lock(clients_mutex);
+            for (const auto &client : clients)
             {
-                send(client.socket, message.c_str(), message.size(), 0);
+                if (client.socket != clientSocket)
+                {
+                    send(client.socket, fullMessage.c_str(), fullMessage.size(), 0);
+                }
             }
         }
 
-        // Log message to file
-        std::ofstream logFile("chatlog.txt", std::ios::app);
-        if (logFile.is_open())
+        // Log with client name
         {
-            logFile << message << std::endl;
+            std::lock_guard<std::mutex> log_lock(log_mutex);
+            std::ofstream logFile("chatlog.txt", std::ios::app);
+            if (logFile.is_open())
+            {
+                logFile << fullMessage << std::endl;
+            }
         }
-        logFile.close();
     }
 
-    // Remove client on disconnect
+    // Remove client from list
     {
         std::lock_guard<std::mutex> lock(clients_mutex);
         clients.erase(std::remove_if(clients.begin(), clients.end(),
@@ -180,14 +195,12 @@ int main()
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
-    // Initialize Winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         std::cerr << "WSAStartup failed\n";
         return 1;
     }
 
-    // Create socket
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == INVALID_SOCKET)
     {
@@ -196,7 +209,6 @@ int main()
         return 1;
     }
 
-    // Bind
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
@@ -209,7 +221,6 @@ int main()
         return 1;
     }
 
-    // Listen
     if (listen(server_fd, 5) == SOCKET_ERROR)
     {
         std::cerr << "Listen failed\n";
@@ -220,7 +231,6 @@ int main()
 
     std::cout << "Server listening on port " << PORT << "...\n";
 
-    // Accept clients in a loop
     while (true)
     {
         SOCKET clientSocket = accept(server_fd, (struct sockaddr *)&address, &addrlen);
@@ -231,13 +241,10 @@ int main()
         }
 
         std::cout << "New client connected!\n";
-
-        // Launch new thread for this client
         std::thread clientThread(handleClient, clientSocket);
-        clientThread.detach(); // Run independently
+        clientThread.detach();
     }
 
-    // Cleanup (never reached here in this server loop)
     closesocket(server_fd);
     WSACleanup();
 

@@ -1,32 +1,5 @@
-helloo anyone there says: what
-jai says: what
-helloo anyone there says: what fo you mean what
-jai says: fuck off
-helloo anyone there says: you fuck off 
-what
-what is it
-onright kartik what do you want
-nothing
-rahul fuck off
-you fuck off
-what do you want
-nothing much
-what do you mean nothing much
-serve is connected successfully
-what do you want
-/kick kunal
-/kick raj
-/kick kartik
-hello people
-kartik says: ehat are u
-rahul says: client
-kartik says: /list
-what
-what are u doing
-i do nothing
-we don't talk anymore 
-like we use to do 
-/kick value
-what do u want
-nothing
-no i believe u want something
+Kartik : Hey anyone There!!
+Kunal: Yes Kunal this side
+Kartik : Amazing , this is the Computer Network Project
+Kunal: Yes , Indeed we have used TCP/IP Socket with multithreading and bradcasting
+Kartik : Truely said
