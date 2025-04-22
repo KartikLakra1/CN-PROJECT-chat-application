@@ -1,5 +1,3 @@
-Kartik : Hey anyone There!!
-Kunal: Yes Kunal this side
-Kartik : Amazing , this is the Computer Network Project
-Kunal: Yes , Indeed we have used TCP/IP Socket with multithreading and bradcasting
-Kartik : Truely said
+
+kunal: hey how are you
+kartik: i'm fine
